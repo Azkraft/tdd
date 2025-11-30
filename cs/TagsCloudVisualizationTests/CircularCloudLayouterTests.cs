@@ -12,6 +12,8 @@ public class CircularCloudLayouterTests
     private const int pictureBorderSize = 20;
     private const int lineWidth = 5;
 
+    private Rectangle[]? testedTagCloud;
+
     private static IEnumerable<Size> GetWrongSizes()
     {
         var values = new[] { -1, 0, 1 };
@@ -21,7 +23,7 @@ public class CircularCloudLayouterTests
             .Where(t => t.Width != 1 || t.Height != 1);
     }
 
-    private static IEnumerable<Size> GetTestSizes()
+    private static IEnumerable<Size> GetRandomizedTestSizes()
     {
         return
         [
@@ -84,12 +86,9 @@ public class CircularCloudLayouterTests
         if (TestContext.CurrentContext.Result.Outcome.Status != NUnit.Framework.Interfaces.TestStatus.Failed)
             return;
 
-        var layouter = new CircularCloudLayouter(new Point());
-        var sizes = GetTestSizes();
-        var rectangles = sizes.Select(layouter.PutNextRectangle).ToArray();
-        var image = DrawTagsCloud(rectangles);
+        var image = DrawTagsCloud(testedTagCloud);
 
-        var directory = Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory, "FailedTestVizualizations"));
+        var directory = Directory.CreateDirectory(Path.Combine(Environment.CurrentDirectory, "FailedTestVisualizations"));
         var path = Path.Combine(directory.FullName, $"{TestContext.CurrentContext.Test.Name}-{Path.GetRandomFileName()}.png");
         using var file = File.Create(path);
         image.Encode().SaveTo(file);
@@ -112,9 +111,9 @@ public class CircularCloudLayouterTests
     public void PutNextRectangle_Should_ReturnRectangleWithSameSize()
     {
         var layouter = new CircularCloudLayouter(new Point());
-        var sizes = GetTestSizes();
+        var sizes = GetRandomizedTestSizes().ToArray();
 
-        var rectangles = sizes.Select(layouter.PutNextRectangle).ToArray();
+        var rectangles = CreateAndStoreTagCloud(layouter, sizes);
 
         rectangles.Select(t => t.Size).Should().Equal(sizes);
     }
@@ -123,9 +122,9 @@ public class CircularCloudLayouterTests
     public void Rectangles_ShouldNot_Intersect()
     {
         var layouter = new CircularCloudLayouter(new Point());
-        var sizes = GetTestSizes();
+        var sizes = GetRandomizedTestSizes();
 
-        var rectangles = sizes.Select(layouter.PutNextRectangle).ToArray();
+        var rectangles = CreateAndStoreTagCloud(layouter, sizes);
 
         for (var i = 0; i < rectangles.Length; i++)
             for (var j = i + 1; j < rectangles.Length; j++)
@@ -136,9 +135,9 @@ public class CircularCloudLayouterTests
     public void CloudDensity_Should_BeGreatOrEqualMinimumRelativeDensity()
     {
         var layouter = new CircularCloudLayouter(new Point());
-        var sizes = GetTestSizes();
+        var sizes = GetRandomizedTestSizes();
 
-        var rectangles = sizes.Select(layouter.PutNextRectangle).ToArray();
+        var rectangles = CreateAndStoreTagCloud(layouter, sizes);
         var boundingRectangle = GetBoundingRectangle(rectangles);
         var cloudRadius = (boundingRectangle.Width + boundingRectangle.Height) / 2.0 / 2.0;
         var actualRelativeDensity =
@@ -152,9 +151,9 @@ public class CircularCloudLayouterTests
     {
         var center = new Point(10, 3);
         var layouter = new CircularCloudLayouter(center);
-        var sizes = GetTestSizes();
+        var sizes = GetRandomizedTestSizes();
 
-        var rectangles = sizes.Select(layouter.PutNextRectangle).ToArray();
+        var rectangles = CreateAndStoreTagCloud(layouter, sizes);
         var boundingRectangle = GetBoundingRectangle(rectangles);
         var actualCenter = boundingRectangle.Location + boundingRectangle.Size / 2;
         var actualCenterOffset = Math.Sqrt(
@@ -164,7 +163,13 @@ public class CircularCloudLayouterTests
         actualCenterOffset.Should().BeLessThanOrEqualTo(maximumCenterOffset);
     }
 
-    private Rectangle GetBoundingRectangle(IEnumerable<Rectangle> rects)
+    private Rectangle[] CreateAndStoreTagCloud(CircularCloudLayouter layouter, IEnumerable<Size> sizes)
+    {
+        testedTagCloud = sizes.Select(layouter.PutNextRectangle).ToArray();
+        return testedTagCloud;
+    }
+
+    private static Rectangle GetBoundingRectangle(IEnumerable<Rectangle> rects)
     {
         var right = int.MinValue;
         var top = int.MaxValue;
@@ -184,7 +189,7 @@ public class CircularCloudLayouterTests
         return new(left, top, width, height);
     }
 
-    private SKImage DrawTagsCloud(Rectangle[] rectangles)
+    private static SKImage DrawTagsCloud(Rectangle[] rectangles)
     {
         var boundingRectangle = GetBoundingRectangle(rectangles);
         var pictureOrigin = boundingRectangle.Location - new Size(pictureBorderSize, pictureBorderSize);
@@ -203,7 +208,7 @@ public class CircularCloudLayouterTests
         return surface.Snapshot();
     }
 
-    private void DrawRectangles(Rectangle[] rectangles, Point pictureOrigin, SKCanvas canvas)
+    private static void DrawRectangles(Rectangle[] rectangles, Point pictureOrigin, SKCanvas canvas)
     {
         var rand = new Random();
         foreach (var rectangle in rectangles)
