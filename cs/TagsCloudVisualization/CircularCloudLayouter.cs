@@ -7,8 +7,6 @@ public class CircularCloudLayouter(Point center)
 {
     private const double radiusStep = 1;
     private const double angleStep = .01;
-
-    private readonly Point center = center;
     private double radius = 0;
     private double angle = 0;
     private readonly List<Rectangle> placedRectangles = [];
@@ -16,31 +14,30 @@ public class CircularCloudLayouter(Point center)
     public Rectangle PutNextRectangle(Size rectangleSize)
     {
         if (rectangleSize.Width <= 0 || rectangleSize.Height <= 0)
-            throw new ArgumentException(null, nameof(rectangleSize));
+            throw new ArgumentException("Recatngle size should be greater then zero", nameof(rectangleSize));
 
-        placedRectangles.Add(new(FindRectanglePosition(rectangleSize), rectangleSize));
-        return placedRectangles[^1];
+        var rectangle = FindRectangleWithCorrectPosition(rectangleSize);
+        placedRectangles.Add(rectangle);
+        return rectangle;
     }
 
-    private Point FindRectanglePosition(Size size)
+    private Rectangle FindRectangleWithCorrectPosition(Size size)
     {
         if (radius == 0)
         {
             radius += radiusStep;
-            return center - size / 2;
+            return new Rectangle(center - size / 2, size);
         }
 
-        while (!CanPlaceRectangle(new(GetRectanglePositionWithCurrentState(size), size)))
+        while (!CanPlaceRectangle(CreateRectangleAwayFromCenter(center, angle, radius, size)))
         {
-            while (angle <= 2 * PI)
-            {
-                angle += angleStep;
-                if (CanPlaceRectangle(new(GetRectanglePositionWithCurrentState(size), size)))
-                    return PullRectangleToCenter(size);
-            }
+            angle += angleStep;
 
-            angle = 0;
-            radius += radiusStep;
+            if (angle > 2 * PI)
+            {
+                angle = 0;
+                radius += radiusStep;
+            }
         }
 
         return PullRectangleToCenter(size);
@@ -49,35 +46,46 @@ public class CircularCloudLayouter(Point center)
     private bool CanPlaceRectangle(Rectangle rectangle)
         => !placedRectangles.Any(rectangle.IntersectsWith);
 
-    private Point PullRectangleToCenter(Size size)
+    /// <summary>
+    /// Pulls a rectangle toward the center of the cloud until it is centered (radius + circumscribingCircleRadius = 0) or intersects with another rectangle.
+    /// </summary>
+    /// <param name="size"></param>
+    /// <returns></returns>
+    private Rectangle PullRectangleToCenter(Size size)
     {
         var currentRadius = radius;
         var circumscribingCircleRadius = GetCircumscribingCircleRadius(size);
 
         while (currentRadius > -circumscribingCircleRadius
-            && CanPlaceRectangle(new(CreateRectanglePositionAwayFromCenter(center, angle, currentRadius, size), size)))
+            && CanPlaceRectangle(CreateRectangleAwayFromCenter(center, angle, currentRadius, size)))
             currentRadius -= radiusStep;
 
         currentRadius += radiusStep;
-        return CreateRectanglePositionAwayFromCenter(center, angle, currentRadius, size);
+        return CreateRectangleAwayFromCenter(center, angle, currentRadius, size);
     }
 
-    private Point GetRectanglePositionWithCurrentState(Size size)
-        => CreateRectanglePositionAwayFromCenter(center, angle, radius, size);
-
-    private Point CreateRectanglePositionAwayFromCenter(Point center, double angle, double distance, Size size)
+    /// <summary>
+    /// The method creates a rectangle at a distance from the cloud center to the circumscribed circle of a rectangle.
+    /// </summary>
+    /// <param name="center"></param>
+    /// <param name="angle"></param>
+    /// <param name="distance"></param>
+    /// <param name="size"></param>
+    /// <returns></returns>
+    private static Rectangle CreateRectangleAwayFromCenter(Point center, double angle, double distance, Size size)
     {
         var circumscribingCircleRadius = GetCircumscribingCircleRadius(size);
+        var location = CreatePointAwayFromCenter(center, angle, distance + circumscribingCircleRadius) - size / 2;
 
-        return CreatePointAwayFromCenter(center, angle, distance + circumscribingCircleRadius) - size / 2;
+        return new Rectangle(location, size);
     }
 
-    private double GetCircumscribingCircleRadius(Size size)
+    private static double GetCircumscribingCircleRadius(Size size)
         => Sqrt(
             (size.Width / 2) * (size.Width / 2)
             + (size.Height / 2) * (size.Height / 2));
 
-    private Point CreatePointAwayFromCenter(Point center, double angle, double distance)
+    private static Point CreatePointAwayFromCenter(Point center, double angle, double distance)
         => new(
             center.X + (int)Round(distance * Cos(angle)),
             center.Y + (int)Round(distance * Sin(angle)));
