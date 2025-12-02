@@ -132,7 +132,7 @@ public class CircularCloudLayouterTests
     }
 
     [Test]
-    public void CloudDensity_Should_BeGreatOrEqualMinimumRelativeDensity()
+    public void CloudDensity_Should_BeGreatOrEqualMinimumRelativeDensity_And_BeCloseToCircle()
     {
         var layouter = new CircularCloudLayouter(new Point());
         var sizes = GetRandomizedTestSizes();
