@@ -44,13 +44,17 @@ public class CircularCloudLayouter(Point center)
     }
 
     private bool CanPlaceRectangle(Rectangle rectangle)
-        => !placedRectangles.Any(rectangle.IntersectsWith);
+    {
+        foreach (var placedRectangle in placedRectangles)
+            if (rectangle.IntersectsWith(placedRectangle))
+                return false;
+
+        return true;
+    }
 
     /// <summary>
     /// Pulls a rectangle toward the center of the cloud until it is centered (radius + circumscribingCircleRadius = 0) or intersects with another rectangle.
     /// </summary>
-    /// <param name="size"></param>
-    /// <returns></returns>
     private Rectangle PullRectangleToCenter(Size size)
     {
         var currentRadius = radius;
@@ -67,11 +71,6 @@ public class CircularCloudLayouter(Point center)
     /// <summary>
     /// The method creates a rectangle at a distance from the cloud center to the circumscribed circle of a rectangle.
     /// </summary>
-    /// <param name="center"></param>
-    /// <param name="angle"></param>
-    /// <param name="distance"></param>
-    /// <param name="size"></param>
-    /// <returns></returns>
     private static Rectangle CreateRectangleAwayFromCenter(Point center, double angle, double distance, Size size)
     {
         var circumscribingCircleRadius = GetCircumscribingCircleRadius(size);
